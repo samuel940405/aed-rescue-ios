@@ -19,10 +19,14 @@ workflows:
           find . -name "Podfile" -exec cd "$(dirname "{}")" \; -exec pod install \;
       - name: Build iOS IPA
         script: |
-          # 這裡使用 --no-codesign 僅作為示範。
-          # 若要產生可安裝的 IPA，您需要在 Codemagic 上設定 Code signing identity (憑證與描述檔)
-          # 並移除 --no-codesign 參數。
           flutter build ipa --release --no-codesign
+          # Manually package the unsigned app into an IPA so artifacts can pick it up
+          cd build/ios/archive/Runner.xcarchive/Products/Applications
+          mkdir Payload
+          cp -r Runner.app Payload
+          zip -r Runner.ipa Payload
+          mkdir -p ../../../../ipa
+          mv Runner.ipa ../../../../ipa/
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
