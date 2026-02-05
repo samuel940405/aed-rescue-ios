@@ -8,44 +8,41 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Complete Setup and Build
+      - name: Complete Build and Force Export
         script: |
-          # 1. 環境初始化
+          # 1. 初始化與權限注入
           flutter pub get
-          
-          # 2. 確保 iOS 專案結構與權限說明 (Info.plist)
           rm -rf ios
           flutter create . --platforms ios
           
-          # 強制寫入定位說明文字
+          # 寫入定位權限說明
           sed -i '' '/<dict>/a \
           <key>NSLocationWhenInUseUsageDescription</key>\
           <string>需要定位權限以在地圖上顯示您附近的 AED。</string>\
           <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>\
           <string>需要定位權限以在地圖上顯示您附近的 AED。</string>' ios/Runner/Info.plist
 
-          # 3. 注入定位權限開關到 Podfile
+          # 注入定位開關
           sed -i '' "1i\\
           ENV['PERMISSION_LOCATION'] = '1'\\
           " ios/Podfile
 
-          # 4. 正式開始編譯 (這步大約需要 1-2 分鐘)
+          # 2. 開始編譯
           flutter build ipa --no-codesign --release
 
-          # 5. 暴力路徑打包
-          mkdir -p build/ios/ipa
-          export APP_PATH="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app"
+          # 3. 【絕對路徑搬運】
+          # 使用 Codemagic 的根目錄變數 $FCI_BUILD_DIR 確保路徑絕不出錯
+          mkdir -p $FCI_BUILD_DIR/build/ios/ipa
           
-          if [ -d "$APP_PATH" ]; then
-            mkdir -p Payload
-            cp -r "$APP_PATH" Payload/
-            zip -r Runner.ipa Payload
-            mv Runner.ipa build/ios/ipa/
-            echo "IPA 打包完成！"
-          else
-            echo "找不到編譯成品，請檢查 Build 日誌！"
-            exit 1
-          fi
+          # 進入編譯成品目錄並打包
+          cd build/ios/archive/Runner.xcarchive/Products/Applications
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r Runner.ipa Payload
+          
+          # 強制搬移到根目錄的出貨區
+          mv Runner.ipa $FCI_BUILD_DIR/build/ios/ipa/
+          echo "IPA 已經搬移到絕對路徑：$FCI_BUILD_DIR/build/ios/ipa/Runner.ipa"
           
     artifacts:
       - build/ios/ipa/*.ipa
