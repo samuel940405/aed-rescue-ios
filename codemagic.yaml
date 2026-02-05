@@ -8,14 +8,14 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Initialize iOS with Permissions
+      - name: Initialize iOS with Permissions Fix
         script: |
-          # 1. 清除舊設定並重新產生 iOS 專案
+          # 1. 刪除舊的 iOS 設定，確保乾淨重來
           rm -rf ios
           flutter create . --platforms ios
 
-          # 2. 【關鍵修復】直接寫入權限開關到 Podfile
-          # 這就是讓 "I AGREE" 按鈕生效的關鍵
+          # 2. 【核心修復】強制產生一個帶有「定位權限開關」的 Podfile
+          # 這行 ENV['PERMISSION_LOCATION'] = '1' 就是讓按鈕復活的關鍵
           cat > ios/Podfile <<EOF
           platform :ios, '13.0'
           ENV['PERMISSION_LOCATION'] = '1'
@@ -33,12 +33,12 @@ workflows:
           end
           EOF
 
-      - name: Build IPA (Unsigned)
+      - name: Build IPA and Pack
         script: |
-          # 3. 編譯 App (不簽名模式)
+          # 3. 編譯 App (這一步會讀取上面的 Podfile 設定)
           flutter build ipa --no-codesign --release
 
-          # 4. 簡單暴力的打包法 (模擬 Build #4 的成功路徑)
+          # 4. 手動打包成 IPA (確保 Artifacts 抓得到)
           mkdir -p build/ios/ipa
           cd build/ios/archive/Runner.xcarchive/Products/Applications
           mkdir Payload
