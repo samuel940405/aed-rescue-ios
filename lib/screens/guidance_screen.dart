@@ -1,0 +1,195 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:vector_math/vector_math.dart' as vector;
+import '../models/aed_point.dart';
+import '../services/sensor_service.dart';
+
+class GuidanceScreen extends StatefulWidget {
+  final AedPoint targetAed;
+  final LatLng userLocation; // Initial location
+
+  const GuidanceScreen({
+    Key? key, 
+    required this.targetAed,
+    required this.userLocation
+  }) : super(key: key);
+
+  @override
+  _GuidanceScreenState createState() => _GuidanceScreenState();
+}
+
+class _GuidanceScreenState extends State<GuidanceScreen> with SingleTickerProviderStateMixin {
+  final SensorService _sensorService = SensorService();
+  double _currentHeading = 0.0;
+  double _bearing = 0.0;
+  double _distance = 0.0;
+  
+  // Animation for smooth arrow rotation
+  late AnimationController _animController;
+  late Animation<double> _animDouble;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    // Start listening to sensors
+    _startTracking();
+  }
+
+  void _startTracking() async {
+    // 1. Compass Stream
+    // In a real app we would listen to streams, here we simulate polling or simple stream usage
+    // For simplicity, we assume we might need a stream wrapper in sensor_service, but let's just use periodic logic or stream if available
+    // Actually SensorService uses Future, let's assuming we add streams later. For now, I'll loop update or use StreamBuilder in build.
+    // Let's implement a loop helper here for demo simplicity to fetch updates
+    _trackPosition();
+  }
+
+  void _trackPosition() async {
+    while (mounted) {
+       // Mock update loop (in production use Geolocator.getPositionStream)
+       await Future.delayed(const Duration(milliseconds: 500));
+       
+       try {
+         final pos = await _sensorService.getCurrentLocation();
+         final heading = await _sensorService.getCurrentHeading() ?? 0.0;
+         
+         if (pos != null) {
+           final current = LatLng(pos.latitude, pos.longitude);
+           final target = LatLng(widget.targetAed.lat, widget.targetAed.lng);
+           
+           setState(() {
+             _distance = const Distance().as(LengthUnit.Meter, current, target);
+             _currentHeading = heading;
+             _bearing = _calculateBearing(current, target);
+           });
+         }
+       } catch (e) {
+         // Ignore
+       }
+    }
+  }
+
+  // Calculate bearing from P1 to P2
+  double _calculateBearing(LatLng start, LatLng end) {
+    // Simple bearing calculation
+    // latlong2 usually has a bearing function, but Distance().bearing(start, end) works too
+    return const Distance().bearing(start, end);
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate relative angle for the arrow
+    // Bearing is 0-360 clockwise from North
+    // Heading is 0-360 clockwise from North
+    // Arrow rotation = Bearing - Heading
+    double rotation = (_bearing - _currentHeading);
+    // Normalize to -180 to 180 for shortest rotation
+    rotation = (rotation + 180) % 360 - 180;
+    
+    // Convert to radians
+    final rotationRad = vector.radians(rotation);
+
+    // Parse landmarks
+    List<dynamic> tags = [];
+    try {
+      tags = json.decode(widget.targetAed.landmarks);
+    } catch(e) {
+      tags = ["Safe Area"];
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('SEARCHING...', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Top Info
+          Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: Column(
+              children: [
+                Text(
+                  widget.targetAed.name, 
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)
+                ),
+                Text(
+                  "${widget.targetAed.floor} • ${widget.targetAed.address}",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey, fontSize: 14)
+                ),
+              ],
+            ),
+          ),
+
+          // ARROW
+          Expanded(
+            child: Center(
+              child: Transform.rotate(
+                angle: rotationRad,
+                child: Icon(
+                  Icons.navigation, // Simple vector arrow
+                  size: 250,
+                  color: _distance < 20 ? Colors.greenAccent : Colors.redAccent,
+                ),
+              ),
+            ),
+          ),
+
+          // Distance & Last 10m Tags
+          Container(
+            padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30)
+              )
+            ),
+            child: Column(
+              children: [
+                Text(
+                  "${_distance.toInt()} M",
+                  style: const TextStyle(color: Colors.white, fontSize: 60, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  alignment: WrapAlignment.center,
+                  children: tags.map((t) => Chip(
+                    label: Text(t.toString().toUpperCase()),
+                    backgroundColor: Colors.amber,
+                    labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  )).toList(),
+                ),
+                if (_distance < 15)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 20),
+                    child: Text(
+                      "YOU ARE CLOSE! LOOK AROUND.",
+                      style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                  )
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}

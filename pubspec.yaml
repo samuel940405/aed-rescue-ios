@@ -1,0 +1,55 @@
+name: aed_rescue_mobile
+description: Offline AED Rescue App with Crowdsourcing features.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # UI & Core
+  cupertino_icons: ^1.0.2
+  
+  # Data Persistence
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  path_provider: ^2.1.1
+  
+  # Sensors & Camera
+  camera: ^0.10.5
+  geolocator: ^10.1.0
+  flutter_compass: ^0.8.0
+  
+  # Network & Sync
+  connectivity_plus: ^5.0.2
+  http: ^1.1.0
+  
+  # Background Tasks (Optional but recommended for auto-sync)
+  workmanager: ^0.5.2
+  
+  # Image Processing (Compression)
+  flutter_image_compress: ^2.1.0
+
+  # Maps & Math
+  flutter_map: ^6.0.0
+  latlong2: ^0.9.0
+  vector_math: ^2.1.4
+
+  # Gamification & Storage
+  shared_preferences: ^2.2.0
+
+  # Audio & Utils
+  url_launcher: ^6.1.12
+  audioplayers: ^5.0.0
+  flutter_tts: ^3.7.0
+  permission_handler: ^10.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
