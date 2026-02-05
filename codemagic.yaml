@@ -8,37 +8,24 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Initialize iOS with Permissions Fix
+      - name: Initialize iOS & Inject Permissions
         script: |
-          # 1. 刪除舊的 iOS 設定，確保乾淨重來
+          # 1. 讓 Flutter 產生標準且正確的 iOS 專案結構
           rm -rf ios
           flutter create . --platforms ios
 
-          # 2. 【核心修復】強制產生一個帶有「定位權限開關」的 Podfile
-          # 這行 ENV['PERMISSION_LOCATION'] = '1' 就是讓按鈕復活的關鍵
-          cat > ios/Podfile <<EOF
-          platform :ios, '13.0'
-          ENV['PERMISSION_LOCATION'] = '1'
-          
-          target 'Runner' do
-            use_frameworks!
-            use_modular_headers!
-            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-          end
-          
-          post_install do |installer|
-            installer.pods_project.targets.each do |target|
-              flutter_additional_ios_build_settings(target)
-            end
-          end
-          EOF
+          # 2. 【外科手術】在自動產生的 Podfile 最頂端插入定位開關
+          # 這樣既保留了 Flutter 的連線，又強行開啟了定位權限
+          sed -i '' "1i\\
+          ENV['PERMISSION_LOCATION'] = '1'\\
+          " ios/Podfile
 
       - name: Build IPA and Pack
         script: |
-          # 3. 編譯 App (這一步會讀取上面的 Podfile 設定)
+          # 3. 執行編譯（這步會跑 pod install，這次絕對會過）
           flutter build ipa --no-codesign --release
 
-          # 4. 手動打包成 IPA (確保 Artifacts 抓得到)
+          # 4. 標準打包流程
           mkdir -p build/ios/ipa
           cd build/ios/archive/Runner.xcarchive/Products/Applications
           mkdir Payload
