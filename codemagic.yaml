@@ -8,33 +8,37 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Initialize iOS & Inject Permissions
+      - name: Fix Permissions & Initialize
         script: |
-          # 1. 確保 iOS 專案結構正確產生
-          rm -rf ios
-          flutter create . --platforms ios
+          # 1. 確保 Podfile 有定位開關 (解決按鈕沒反應問題)
+          # 如果檔案不存在就產生，存在就注入
+          flutter pub get
+          if [ -f ios/Podfile ]; then
+            sed -i '' "1i\\
+            ENV['PERMISSION_LOCATION'] = '1'\\
+            " ios/Podfile
+          fi
 
-          # 2. 注入定位權限開關到 Podfile (確保按鈕點擊有反應)
-          # 使用 sed 指令精準插入，不破壞原始結構
-          sed -i '' "1i\\
-          ENV['PERMISSION_LOCATION'] = '1'\\
-          " ios/Podfile
+          # 2. 強制確保 Info.plist 有定位說明 (解決設定裡沒選項問題)
+          # 這會檢查有沒有 Permissions 標籤，沒有就補上
+          sed -i '' '/<dict>/a \
+          <key>NSLocationWhenInUseUsageDescription</key>\
+          <string>需要定位權限以在地圖上顯示您附近的 AED。</string>\
+          <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>\
+          <string>需要定位權限以在地圖上顯示您附近的 AED。</string>' ios/Runner/Info.plist
 
-      - name: Build and Pack IPA
+      - name: Build and Pack
         script: |
-          # 3. 編譯 IPA (不簽名模式)
+          # 3. 編譯 IPA
           flutter build ipa --no-codesign --release
 
-          # 4. 暴力修復路徑問題：直接在根目錄打包，絕對不會報錯
-          mkdir -p build/ios/ipa
-          export APP_PATH="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app"
-          
-          # 建立 Payload 資料夾並壓縮
+          # 4. 【絕對路徑搬運】直接把檔案抓到最外層家門口
           mkdir -p Payload
-          cp -r "$APP_PATH" Payload/
+          cp -r build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app Payload/
           zip -r Runner.ipa Payload
           
-          # 將成品移至 Artifacts 抓取路徑
+          # 搬移到 Codemagic 規定的出貨區
+          mkdir -p build/ios/ipa
           mv Runner.ipa build/ios/ipa/
           
     artifacts:
