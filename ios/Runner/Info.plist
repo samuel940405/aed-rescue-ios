@@ -49,11 +49,9 @@
 	<true/>
     
     <!-- Permissions -->
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>我們需要您的定位資訊，以便在緊急時刻指引您前往最近的 AED。</string>
-    <key>NSCameraUsageDescription</key>
-    <string>用於拍攝 AED 現場照片以供社群協作驗證位置。</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>為了確保在導航過程中持續更新 AED 方位，我們需要您的位置存取權限。</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>我們需要您的定位資訊，以便在緊急時刻指引您前往最近的 AED。</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>為了確保在導航過程中持續更新 AED 方位，我們需要您的位置存取權限。</string>
 </dict>
 </plist>
