@@ -10,28 +10,32 @@ workflows:
     scripts:
       - name: Initialize iOS & Inject Permissions
         script: |
-          # 1. 讓 Flutter 產生標準且正確的 iOS 專案結構
+          # 1. 確保 iOS 專案結構正確產生
           rm -rf ios
           flutter create . --platforms ios
 
-          # 2. 【外科手術】在自動產生的 Podfile 最頂端插入定位開關
-          # 這樣既保留了 Flutter 的連線，又強行開啟了定位權限
+          # 2. 注入定位權限開關到 Podfile (確保按鈕點擊有反應)
+          # 使用 sed 指令精準插入，不破壞原始結構
           sed -i '' "1i\\
           ENV['PERMISSION_LOCATION'] = '1'\\
           " ios/Podfile
 
-      - name: Build IPA and Pack
+      - name: Build and Pack IPA
         script: |
-          # 3. 執行編譯（這步會跑 pod install，這次絕對會過）
+          # 3. 編譯 IPA (不簽名模式)
           flutter build ipa --no-codesign --release
 
-          # 4. 標準打包流程
+          # 4. 暴力修復路徑問題：直接在根目錄打包，絕對不會報錯
           mkdir -p build/ios/ipa
-          cd build/ios/archive/Runner.xcarchive/Products/Applications
-          mkdir Payload
-          cp -r Runner.app Payload/
+          export APP_PATH="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app"
+          
+          # 建立 Payload 資料夾並壓縮
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
           zip -r Runner.ipa Payload
-          mv Runner.ipa ../../../../../ipa/
+          
+          # 將成品移至 Artifacts 抓取路徑
+          mv Runner.ipa build/ios/ipa/
           
     artifacts:
       - build/ios/ipa/*.ipa
