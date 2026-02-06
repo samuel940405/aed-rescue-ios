@@ -7,23 +7,26 @@ workflows:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Fix Dependencies & Build
+      - name: Hard Reset & Package Upgrade
         script: |
-          # 1. 產生 Android 專案
+          # 1. 砍掉重練 Android 專案
+          rm -rf android
           flutter create . --platforms android
 
-          # 2. 【關鍵修復】強制更新套件到最新版
-          # 這一行會把 permission_handler 從 10.x 升級到最新版 (11+ 或 12+)
-          # 徹底解決 Registrar 找不到的問題
-          flutter pub add permission_handler geolocator
+          # 2. 【核心修復】強制全體升級！
+          # 直接把這三個最常鬧 Registrar 錯誤的套件灌到最新版
+          flutter pub add permission_handler geolocator workmanager
+          
+          # 3. 確保所有相依套件也跟著升級
+          flutter pub upgrade --major-versions
 
-          # 3. 注入 Android 權限
+          # 4. 注入 Android 權限
           sed -i '' '/<application/i \
           <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> \
           <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> \
           <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
-          # 4. 編譯
+          # 5. 編譯 APK
           flutter build apk --debug
           
     artifacts:
