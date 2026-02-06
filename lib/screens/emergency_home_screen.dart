@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -19,39 +21,12 @@ class EmergencyHomeScreen extends StatefulWidget {
 }
 
 class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
-  final SensorService _sensorService = SensorService(); // Kept for other potential uses or backup
+  final SensorService _sensorService = SensorService(); 
   final DatabaseHelper _dbHelper = DatabaseHelper();
 
-  // 1. Inject CYCU AED Data (Hardcoded for demo/testing)
-  final List<AedPoint> _allAeds = [
-    AedPoint(
-      id: 1001,
-      name: '中原大學 科學館',
-      address: '桃園市中壢區中北路200號 (科學館)',
-      floor: '1F',
-      landmarks: '["Main Entrance", "Security Desk"]',
-      lat: 24.9582,
-      lng: 121.2403,
-    ),
-    AedPoint(
-      id: 1002,
-      name: '中原大學 全人教育村',
-      address: '桃園市中壢區中北路200號 (全人)',
-      floor: 'LB',
-      landmarks: '["Village Hall", "Information"]',
-      lat: 24.9571,
-      lng: 121.2415,
-    ),
-    AedPoint(
-      id: 1003,
-      name: '中原大學 體育館',
-      address: '桃園市中壢區中北路200號 (體育館)',
-      floor: '1F',
-      landmarks: '["Gym Reception"]',
-      lat: 24.9591,
-      lng: 121.2430,
-    ),
-  ];
+  // 1. Remove Hardcoded Data
+  // JSON loading will replace _allAeds
+  List<AedPoint> _allAeds = [];
 
   List<AedPoint> _nearestAeds = [];
   bool _loading = true;
@@ -61,11 +36,28 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize list with hardcoded data properly
-    _nearestAeds = List.from(_allAeds); 
+    // 2. Load JSON Data
+    _loadAedData();
     
     // Start tracking
     _startLocationStream();
+  }
+
+  Future<void> _loadAedData() async {
+    try {
+      final String response = await rootBundle.loadString('assets/aed_data.json');
+      final List<dynamic> data = json.decode(response);
+      setState(() {
+        _allAeds = data.map((json) => AedPoint.fromMap(json)).toList();
+      });
+      // Initial sort if we already have location (unlikely first run, but possible)
+      if (_currentLocation != null) {
+        _sortAedsByDistance();
+      }
+    } catch (e) {
+      print("Failed to load AED data: $e");
+      // Fallback empty list or handle error
+    }
   }
 
   @override
@@ -74,11 +66,9 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
     super.dispose();
   }
 
-  // 2. Implement Missing Function: _startLocationStream
   void _startLocationStream() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      // Handle disabled service if needed
       print("Location services are disabled.");
     }
 
@@ -87,10 +77,9 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
       permission = await Geolocator.requestPermission();
     }
     
-    // 3. Fix Const Syntax: Remove const from LocationSettings
     final locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 20, // Update every 20 meters
+      distanceFilter: 20, 
     );
 
     _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings)
@@ -98,17 +87,16 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
       if (mounted) {
         setState(() {
           _currentLocation = LatLng(position.latitude, position.longitude);
+           // Loading is done once we have location + data (data loads fast)
           _loading = false;
           _sortAedsByDistance();
         });
       }
     }, onError: (e) {
       print("Location stream error: $e");
-      // Fallback location checks could go here
     });
   }
 
-  // 4. Implement Missing Function: _refreshLocation
   Future<void> _refreshLocation() async {
     setState(() => _loading = true);
     try {
@@ -138,32 +126,42 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
     }
   }
 
-  // 5. Implement Missing Function: _sortAedsByDistance
+  // 3. Dynamic Filtering Logic (2km radius)
   void _sortAedsByDistance() {
-    if (_currentLocation == null) return;
+    if (_currentLocation == null || _allAeds.isEmpty) return;
 
     final Distance distance = const Distance();
-    
-    // Update distances
+    const double radiusInMeters = 2000; // 2km radius
+
+    // Create a temporary list for calculation
+    List<AedPoint> nearbyCandidates = [];
+
+    // Calculate distances and filter
     for (var aed in _allAeds) {
-      aed.distance = distance.as(
+      double dist = distance.as(
         LengthUnit.Meter,
         _currentLocation!,
         LatLng(aed.lat, aed.lng)
       );
+      aed.distance = dist; // Store distance in object
+
+      if (dist <= radiusInMeters) {
+        nearbyCandidates.add(aed);
+      }
     }
 
-    // Sort
-    _allAeds.sort((a, b) => (a.distance ?? 99999).compareTo(b.distance ?? 99999));
+    // Sort by distance
+    nearbyCandidates.sort((a, b) => (a.distance ?? 99999).compareTo(b.distance ?? 99999));
     
-    // Update display list (Top 10)
-    _nearestAeds = _allAeds.take(10).toList();
+    // Update display list (Take up to 20 to show list, can be adjusted)
+    setState(() {
+        _nearestAeds = nearbyCandidates; 
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Basic loading logic based on whether we have location or at least AEDs to show
-    if (_loading && _currentLocation == null && _nearestAeds.isEmpty) {
+    if (_loading && _currentLocation == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -209,93 +207,95 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _nearestAeds.length,
-              itemBuilder: (context, index) {
-                final aed = _nearestAeds[index];
-                return Card(
-                  elevation: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: InkWell(
-                    onTap: () {
-                      _showActionSheet(context, aed);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          // Big Distance
-                          Container(
-                            width: 80,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.withOpacity(0.3))
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  "${aed.distance?.toInt() ?? '-'}m",
-                                  style: const TextStyle(
-                                    fontSize: 20, 
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.red
+            child: _nearestAeds.isEmpty 
+              ? Center(child: Text("附近 2km 內沒有發現 AED", style: TextStyle(color: Colors.grey[600], fontSize: 16)))
+              : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _nearestAeds.length,
+                itemBuilder: (context, index) {
+                  final aed = _nearestAeds[index];
+                  return Card(
+                    elevation: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: InkWell(
+                      onTap: () {
+                        _showActionSheet(context, aed);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            // Big Distance
+                            Container(
+                              width: 80,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.red[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.withOpacity(0.3))
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    "${aed.distance?.toInt() ?? '-'}m",
+                                    style: const TextStyle(
+                                      fontSize: 20, 
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red
+                                    ),
                                   ),
-                                ),
-                                const Text("Distance", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                              ],
+                                  const Text("Distance", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          // Info
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  aed.name,
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber[100],
-                                        borderRadius: BorderRadius.circular(4)
+                            const SizedBox(width: 16),
+                            // Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    aed.name,
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber[100],
+                                          borderRadius: BorderRadius.circular(4)
+                                        ),
+                                        child: Text(
+                                          aed.floor, 
+                                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brown[800])
+                                        ),
                                       ),
-                                      child: Text(
-                                        aed.floor, 
-                                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brown[800])
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          aed.address,
+                                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        aed.address,
-                                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              ],
+                                    ],
+                                  )
+                                ],
+                              ),
                             ),
-                          ),
-                          const Icon(Icons.arrow_forward_ios, color: Colors.grey),
-                        ],
+                            const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
           ),
           // Offline Map Placeholder Section
           Container(
@@ -315,7 +315,6 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
                 children: [
                    TileLayer(
                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                     // 6. Fix Map Permission: userAgentPackageName
                      userAgentPackageName: 'com.cycu.rescue.mobileApp',
                    ),
                    MarkerLayer(
