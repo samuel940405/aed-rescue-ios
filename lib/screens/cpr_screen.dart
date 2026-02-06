@@ -61,7 +61,7 @@ class _CprScreenState extends State<CprScreen> with SingleTickerProviderStateMix
     });
   }
 
-  void _playBeat() {
+  Future<void> _playBeat() async {
     // Play a system click or simple sound
     // Since we don't have assets guaranteed, we assume a source or fallback to logic
     // For this demo, we'll try to play a default source if available, else just visual
