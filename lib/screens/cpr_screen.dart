@@ -66,9 +66,10 @@ class _CprScreenState extends State<CprScreen> with SingleTickerProviderStateMix
     // Since we don't have assets guaranteed, we assume a source or fallback to logic
     // For this demo, we'll try to play a default source if available, else just visual
     try {
-       // _audioPlayer.play(AssetSource('sounds/beat.mp3')); 
-       // NOTE: User needs to add file. We will just animate visual for now to avoid crashes.
-    } catch(e) {}
+       await _audioPlayer.play(AssetSource('sounds/metronome.mp3')); 
+    } catch(e) {
+       print("Audio play error: $e");
+    }
     
     // Visual Beat
     _animController.forward().then((_) => _animController.reverse());

@@ -140,12 +140,14 @@ class _GuidanceScreenState extends State<GuidanceScreen> with SingleTickerProvid
           // ARROW
           Expanded(
             child: Center(
-              child: Transform.rotate(
-                angle: rotationRad,
-                child: Icon(
-                  Icons.navigation, // Simple vector arrow
-                  size: 250,
-                  color: _distance < 20 ? Colors.greenAccent : Colors.redAccent,
+              child: IgnorePointer(
+                child: Transform.rotate(
+                  angle: rotationRad,
+                  child: Icon(
+                    Icons.navigation, // Simple vector arrow
+                    size: 250,
+                    color: _distance < 20 ? Colors.greenAccent : Colors.redAccent,
+                  ),
                 ),
               ),
             ),
