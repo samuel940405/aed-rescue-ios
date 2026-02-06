@@ -44,5 +44,5 @@ workflows:
           mv Runner.ipa $FCI_BUILD_DIR/build/ios/ipa/
           echo "IPA 已經搬移到絕對路徑：$FCI_BUILD_DIR/build/ios/ipa/Runner.ipa"
           
-    artifacts:
+        artifacts:
       - build/ios/ipa/*.ipa
