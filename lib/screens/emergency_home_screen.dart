@@ -222,7 +222,7 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
                 children: [
                    TileLayer(
                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                     userAgentPackageName: 'com.example.app',
+                     userAgentPackageName: 'com.cycu.rescue.mobileApp',
                      // For offline, you would change this to a local provider or use fmtc
                      // tileProvider: AssetTileProvider(...),
                    ),
