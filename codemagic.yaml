@@ -1,53 +1,35 @@
 workflows:
-  ios-release:
-    name: iOS Release (New ID)
+  android-debug:
+    name: Android Debug
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
       flutter: stable
       xcode: latest
-      cocoapods: default
     scripts:
-      - name: Rebirth App with New Bundle ID
+      - name: Initialize Android and Permissions
         script: |
-          # 1. 清除舊的 iOS 專案
-          rm -rf ios
+          # 1. 初始化 Android 專案
+          flutter create . --platforms android
 
-          # 2. 【核心修改】使用全新的 Organization Name (com.cycu.rescue)
-          # 這會讓 App 的身分證字號變更為：com.cycu.rescue.mobileApp
-          # iOS 會把它當作全新的 App，之前的拒絕紀錄全部作廢！
-          flutter create --org com.cycu.rescue . --platforms ios
+          # 2. 注入 Android 權限到 AndroidManifest.xml
+          MAN_PATH="android/app/src/main/AndroidManifest.xml"
+          
+          # 確保檔案存在後注入權限標籤
+          if [ -f "$MAN_PATH" ]; then
+             sed -i '' '/<application/i \
+             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\
+             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\
+             <uses-permission android:name="android.permission.INTERNET"/>' "$MAN_PATH"
+             echo "Permissions injected into AndroidManifest.xml"
+          else
+             echo "Error: AndroidManifest.xml not found at $MAN_PATH"
+             exit 1
+          fi
 
-          # 3. 注入定位說明 (Info.plist)
-          # 確保新身分證上也寫著「我需要定位」
-          sed -i '' '/<dict>/a \
-          <key>NSLocationWhenInUseUsageDescription</key>\
-          <string>需要定位權限以在地圖上顯示您附近的 AED。</string>\
-          <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>\
-          <string>需要定位權限以在地圖上顯示您附近的 AED。</string>' ios/Runner/Info.plist
-
-          # 4. 注入定位開關 (Podfile)
-          # 確保編譯器不閹割權限代碼
-          sed -i '' "1i\\
-          ENV['PERMISSION_LOCATION'] = '1'\\
-          " ios/Podfile
-
-      - name: Build and Pack
+      - name: Build Android APK
         script: |
-          # 5. 編譯 IPA
-          flutter build ipa --no-codesign --release
-
-          # 6. 絕對路徑打包 (使用我們驗證過最穩的搬運法)
-          mkdir -p $FCI_BUILD_DIR/build/ios/ipa
-          
-          cd build/ios/archive/Runner.xcarchive/Products/Applications
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r Runner.ipa Payload
-          
-          # 搬移到出貨區
-          mv Runner.ipa $FCI_BUILD_DIR/build/ios/ipa/
-          echo "轉生版 IPA 打包完成！"
+          flutter build apk --debug
 
     artifacts:
-      - build/ios/ipa/*.ipa
+      - build/app/outputs/flutter-apk/*.apk

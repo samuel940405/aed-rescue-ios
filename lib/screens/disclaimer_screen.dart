@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart'; // To access cameras if needed, or better, navigate to wrapper.
 
@@ -9,24 +10,39 @@ class DisclaimerScreen extends StatelessWidget {
   const DisclaimerScreen({Key? key, required this.onAccept}) : super(key: key);
 
   Future<void> _handleAccept(BuildContext context) async {
-    var status = await Permission.location.status;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("目前權限狀態: $status")),
-    );
+    // 1. Request Permission
+    var status = await Permission.location.request();
 
-    if (status.isDenied) {
-        Map<Permission, PermissionStatus> statuses = await [Permission.location].request();
+    if (status.isGranted) {
+      // 2. Get Position
+      try {
+        Position position = await Geolocator.getCurrentPosition();
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("請求結果: ${statuses[Permission.location]}")),
+          SnackBar(
+            content: Text("成功取得位置: ${position.latitude}, ${position.longitude}"),
+            backgroundColor: Colors.green,
+          )
         );
-    } else if (status.isPermanentlyDenied) {
-        openAppSettings();
-    } else if (status.isGranted) {
-        // Save state
+        
+        // Original logic to proceed
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('has_accepted_disclaimer', true);
-        
         onAccept();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("取得位置失敗: $e"),
+            backgroundColor: Colors.red,
+          )
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("權限被拒絕"),
+          backgroundColor: Colors.red,
+        )
+      );
     }
   }
 
