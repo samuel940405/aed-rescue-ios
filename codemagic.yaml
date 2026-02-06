@@ -10,39 +10,23 @@ workflows:
     scripts:
       - name: Complete Build and Force Export
         script: |
-          # 1. 初始化與權限注入
           flutter pub get
           rm -rf ios
           flutter create . --platforms ios
-          
-          # 寫入定位權限說明
           sed -i '' '/<dict>/a \
           <key>NSLocationWhenInUseUsageDescription</key>\
           <string>需要定位權限以在地圖上顯示您附近的 AED。</string>\
           <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>\
           <string>需要定位權限以在地圖上顯示您附近的 AED。</string>' ios/Runner/Info.plist
-
-          # 注入定位開關
           sed -i '' "1i\\
           ENV['PERMISSION_LOCATION'] = '1'\\
           " ios/Podfile
-
-          # 2. 開始編譯
           flutter build ipa --no-codesign --release
-
-          # 3. 【絕對路徑搬運】
-          # 使用 Codemagic 的根目錄變數 $FCI_BUILD_DIR 確保路徑絕不出錯
           mkdir -p $FCI_BUILD_DIR/build/ios/ipa
-          
-          # 進入編譯成品目錄並打包
           cd build/ios/archive/Runner.xcarchive/Products/Applications
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -r Runner.ipa Payload
-          
-          # 強制搬移到根目錄的出貨區
           mv Runner.ipa $FCI_BUILD_DIR/build/ios/ipa/
-          echo "IPA 已經搬移到絕對路徑：$FCI_BUILD_DIR/build/ios/ipa/Runner.ipa"
-          
-        artifacts:
+    artifacts:
       - build/ios/ipa/*.ipa
