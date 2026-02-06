@@ -25,52 +25,60 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
   bool _loading = true;
   LatLng? _currentLocation;
 
+  StreamSubscription<Position>? _positionStream;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    _startLocationTracking();
   }
 
-  Future<void> _loadData() async {
-    // Ensure dummy data exists for demo
-    await _dbHelper.seedDummyData();
+  @override
+  void dispose() {
+    _positionStream?.cancel();
+    super.dispose();
+  }
+
+  void _startLocationTracking() {
+    // Determine accuracy based on needs, high for emergency
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 50, // Update every 50 meters
+    );
     
-    // Get Location
-    try {
-      final pos = await _sensorService.getCurrentLocation();
-      if (pos != null) {
-        _currentLocation = LatLng(pos.latitude, pos.longitude);
-        await _findNearestAeds(_currentLocation!);
+    _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings)
+        .listen((Position? position) {
+      if (position != null) {
+        print("Location updated: ${position.latitude}, ${position.longitude}");
+        setState(() {
+          _currentLocation = LatLng(position.latitude, position.longitude);
+        });
+        _findNearestAeds(_currentLocation!);
       }
-    } catch (e) {
-      print("Error loading location: $e");
-      // Use fallback location (Taipei 101) for demo if GPS fails in simulator
-      _currentLocation = const LatLng(25.0330, 121.5654);
-      await _findNearestAeds(_currentLocation!);
-    } finally {
-      setState(() {
-        _loading = false;
-      });
-    }
+    });
   }
 
-  Future<void> _findNearestAeds(LatLng current) async {
-    final data = await _dbHelper.getAllAeds();
-    final allAeds = data.map((e) => AedPoint.fromMap(e)).toList();
-    
-    // Calculate distance for all
-    final Distance distance = const Distance();
-    for (var aed in allAeds) {
-      aed.distance = distance.as(
-        LengthUnit.Meter, 
-        current, 
-        LatLng(aed.lat, aed.lng)
-      );
+  Future<void> _refreshLocation() async {
+    setState(() => _loading = true);
+    try {
+        final pos = await _sensorService.getCurrentLocation();
+        if (pos != null) {
+          setState(() { 
+            _currentLocation = LatLng(pos.latitude, pos.longitude); 
+          });
+          await _findNearestAeds(_currentLocation!);
+          ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text("Location updated manually."), backgroundColor: Colors.green)
+          );
+        }
+    } catch(e) {
+         ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text("Failed to update location: $e"), backgroundColor: Colors.red)
+          );
+    } finally {
+        setState(() => _loading = false);
     }
-
-    // Sort and take top 3
-    allAeds.sort((a, b) => (a.distance ?? 99999).compareTo(b.distance ?? 99999));
-    _nearestAeds = allAeds.take(3).toList();
   }
 
   @override
@@ -86,6 +94,11 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
         backgroundColor: Colors.redAccent,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshLocation,
+            tooltip: 'Refresh Location',
+          ),
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen())),
