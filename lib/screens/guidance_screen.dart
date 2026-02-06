@@ -1,3 +1,5 @@
+import 'dart:async'; // For StreamSubscription
+import 'package:geolocator/geolocator.dart'; // For Position and Geolocator
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
@@ -40,38 +42,33 @@ class _GuidanceScreenState extends State<GuidanceScreen> with SingleTickerProvid
     _startTracking();
   }
 
-  void _startTracking() async {
-    // 1. Compass Stream
-    // In a real app we would listen to streams, here we simulate polling or simple stream usage
-    // For simplicity, we assume we might need a stream wrapper in sensor_service, but let's just use periodic logic or stream if available
-    // Actually SensorService uses Future, let's assuming we add streams later. For now, I'll loop update or use StreamBuilder in build.
-    // Let's implement a loop helper here for demo simplicity to fetch updates
-    _trackPosition();
+  StreamSubscription<Position>? _positionStream;
+
+  void _startTracking() {
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 0,
+    );
+
+    _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings)
+        .listen((Position position) {
+        if (mounted) {
+           _updatePosition(position);
+        }
+    });
   }
 
-  void _trackPosition() async {
-    while (mounted) {
-       // Mock update loop (in production use Geolocator.getPositionStream)
-       await Future.delayed(const Duration(milliseconds: 500));
+  void _updatePosition(Position pos) async {
+       final heading = await _sensorService.getCurrentHeading() ?? 0.0;
        
-       try {
-         final pos = await _sensorService.getCurrentLocation();
-         final heading = await _sensorService.getCurrentHeading() ?? 0.0;
-         
-         if (pos != null) {
-           final current = LatLng(pos.latitude, pos.longitude);
-           final target = LatLng(widget.targetAed.lat, widget.targetAed.lng);
-           
-           setState(() {
-             _distance = const Distance().as(LengthUnit.Meter, current, target);
-             _currentHeading = heading;
-             _bearing = _calculateBearing(current, target);
-           });
-         }
-       } catch (e) {
-         // Ignore
-       }
-    }
+       final current = LatLng(pos.latitude, pos.longitude);
+       final target = LatLng(widget.targetAed.lat, widget.targetAed.lng);
+       
+       setState(() {
+         _distance = const Distance().as(LengthUnit.Meter, current, target);
+         _currentHeading = heading;
+         _bearing = _calculateBearing(current, target);
+       });
   }
 
   // Calculate bearing from P1 to P2
@@ -83,6 +80,7 @@ class _GuidanceScreenState extends State<GuidanceScreen> with SingleTickerProvid
 
   @override
   void dispose() {
+    _positionStream?.cancel();
     _animController.dispose();
     super.dispose();
   }
