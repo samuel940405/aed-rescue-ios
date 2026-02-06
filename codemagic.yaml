@@ -8,25 +8,36 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Complete Build and Force Export
+      - name: Complete Build and Auto Export
         script: |
+          # 1. 初始化與注入定位權限 (Info.plist & Podfile)
           flutter pub get
           rm -rf ios
           flutter create . --platforms ios
+          
           sed -i '' '/<dict>/a \
           <key>NSLocationWhenInUseUsageDescription</key>\
           <string>需要定位權限以在地圖上顯示您附近的 AED。</string>\
           <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>\
           <string>需要定位權限以在地圖上顯示您附近的 AED。</string>' ios/Runner/Info.plist
+
           sed -i '' "1i\\
           ENV['PERMISSION_LOCATION'] = '1'\\
           " ios/Podfile
+
+          # 2. 開始編譯
           flutter build ipa --no-codesign --release
-          mkdir -p $FCI_BUILD_DIR/build/ios/ipa
-          cd build/ios/archive/Runner.xcarchive/Products/Applications
+
+          # 3. 【全自動搜索大法】
+          # 不管編譯在哪裡，直接把 Runner.ipa 找出來並打包放到根目錄
+          export APP_PATH=$(find build/ios/archive -name "Runner.app" | head -n 1)
           mkdir -p Payload
-          cp -r Runner.app Payload/
+          cp -r "$APP_PATH" Payload/
           zip -r Runner.ipa Payload
-          mv Runner.ipa $FCI_BUILD_DIR/build/ios/ipa/
+          
+          # 搬到最外層，讓 Codemagic 絕對看得到
+          mv Runner.ipa $FCI_BUILD_DIR/
+          echo "IPA 已就位！"
+          
     artifacts:
-      - build/ios/ipa/*.ipa
+      - "*.ipa"
