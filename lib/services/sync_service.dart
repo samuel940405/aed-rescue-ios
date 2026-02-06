@@ -9,7 +9,8 @@ class SyncService {
 
   /// Start monitoring connectivity changes
   void initialize() {
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      final result = results.first;
       if (result == ConnectivityResult.wifi || result == ConnectivityResult.mobile) {
         print("Network restored. Triggering sync...");
         syncPendingUploads();
