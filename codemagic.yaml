@@ -1,35 +1,30 @@
 workflows:
   android-debug:
-    name: Android Debug
+    name: Android Debug Build
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Initialize Android and Permissions
+      - name: Fix Dependencies & Build
         script: |
-          # 1. 初始化 Android 專案
+          # 1. 產生 Android 專案
           flutter create . --platforms android
 
-          # 2. 注入 Android 權限到 AndroidManifest.xml
-          MAN_PATH="android/app/src/main/AndroidManifest.xml"
-          
-          # 確保檔案存在後注入權限標籤
-          if [ -f "$MAN_PATH" ]; then
-             sed -i '' '/<application/i \
-             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\
-             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\
-             <uses-permission android:name="android.permission.INTERNET"/>' "$MAN_PATH"
-             echo "Permissions injected into AndroidManifest.xml"
-          else
-             echo "Error: AndroidManifest.xml not found at $MAN_PATH"
-             exit 1
-          fi
+          # 2. 【關鍵修復】強制更新套件到最新版
+          # 這一行會把 permission_handler 從 10.x 升級到最新版 (11+ 或 12+)
+          # 徹底解決 Registrar 找不到的問題
+          flutter pub add permission_handler geolocator
 
-      - name: Build Android APK
-        script: |
+          # 3. 注入 Android 權限
+          sed -i '' '/<application/i \
+          <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> \
+          <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> \
+          <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+
+          # 4. 編譯
           flutter build apk --debug
-
+          
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
