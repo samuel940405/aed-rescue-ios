@@ -9,23 +9,24 @@ class DisclaimerScreen extends StatelessWidget {
   const DisclaimerScreen({Key? key, required this.onAccept}) : super(key: key);
 
   Future<void> _handleAccept(BuildContext context) async {
-    // Request Permissions
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.location,
-      Permission.camera,
-      Permission.microphone, // For CPR voice maybe? Or just general
-    ].request();
+    var status = await Permission.location.status;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("目前權限狀態: $status")),
+    );
 
-    if (statuses[Permission.location]!.isGranted) {
-      // Save state
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('has_accepted_disclaimer', true);
-      
-      onAccept();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Location permission is required for this app.")),
-      );
+    if (status.isDenied) {
+        Map<Permission, PermissionStatus> statuses = await [Permission.location].request();
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("請求結果: ${statuses[Permission.location]}")),
+        );
+    } else if (status.isPermanentlyDenied) {
+        openAppSettings();
+    } else if (status.isGranted) {
+        // Save state
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('has_accepted_disclaimer', true);
+        
+        onAccept();
     }
   }
 
