@@ -1,6 +1,6 @@
 workflows:
   ios-release:
-    name: iOS Release
+    name: iOS Release (New ID)
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
@@ -8,36 +8,46 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Complete Build and Auto Export
+      - name: Rebirth App with New Bundle ID
         script: |
-          # 1. 初始化與注入定位權限 (Info.plist & Podfile)
-          flutter pub get
+          # 1. 清除舊的 iOS 專案
           rm -rf ios
-          flutter create . --platforms ios
-          
+
+          # 2. 【核心修改】使用全新的 Organization Name (com.cycu.rescue)
+          # 這會讓 App 的身分證字號變更為：com.cycu.rescue.mobileApp
+          # iOS 會把它當作全新的 App，之前的拒絕紀錄全部作廢！
+          flutter create --org com.cycu.rescue . --platforms ios
+
+          # 3. 注入定位說明 (Info.plist)
+          # 確保新身分證上也寫著「我需要定位」
           sed -i '' '/<dict>/a \
           <key>NSLocationWhenInUseUsageDescription</key>\
           <string>需要定位權限以在地圖上顯示您附近的 AED。</string>\
           <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>\
           <string>需要定位權限以在地圖上顯示您附近的 AED。</string>' ios/Runner/Info.plist
 
+          # 4. 注入定位開關 (Podfile)
+          # 確保編譯器不閹割權限代碼
           sed -i '' "1i\\
           ENV['PERMISSION_LOCATION'] = '1'\\
           " ios/Podfile
 
-          # 2. 開始編譯
+      - name: Build and Pack
+        script: |
+          # 5. 編譯 IPA
           flutter build ipa --no-codesign --release
 
-          # 3. 【全自動搜索大法】
-          # 不管編譯在哪裡，直接把 Runner.ipa 找出來並打包放到根目錄
-          export APP_PATH=$(find build/ios/archive -name "Runner.app" | head -n 1)
+          # 6. 絕對路徑打包 (使用我們驗證過最穩的搬運法)
+          mkdir -p $FCI_BUILD_DIR/build/ios/ipa
+          
+          cd build/ios/archive/Runner.xcarchive/Products/Applications
           mkdir -p Payload
-          cp -r "$APP_PATH" Payload/
+          cp -r Runner.app Payload/
           zip -r Runner.ipa Payload
           
-          # 搬到最外層，讓 Codemagic 絕對看得到
-          mv Runner.ipa $FCI_BUILD_DIR/
-          echo "IPA 已就位！"
-          
+          # 搬移到出貨區
+          mv Runner.ipa $FCI_BUILD_DIR/build/ios/ipa/
+          echo "轉生版 IPA 打包完成！"
+
     artifacts:
-      - "*.ipa"
+      - build/ios/ipa/*.ipa
