@@ -1,47 +1,56 @@
 [
   {
-    "id": 1001,
-    "name": "中原大學 科學館",
-    "address": "桃園市中壢區中北路200號 (科學館)",
-    "floor": "1F",
-    "landmarks": "[\"Main Entrance\", \"Security Desk\"]",
-    "lat": 24.9582,
-    "lng": 121.2403
-  },
-  {
-    "id": 1002,
+    "id": "cycu_01",
     "name": "中原大學 全人教育村",
-    "address": "桃園市中壢區中北路200號 (全人)",
-    "floor": "LB",
-    "landmarks": "[\"Village Hall\", \"Information\"]",
+    "address": "北棟 1F 衛生保健組 (靠右側入口)",
+    "floor": "1F",
+    "landmarks": "[\"Health Center\", \"North Building\"]",
     "lat": 24.957550,
     "lng": 121.240750
   },
   {
-    "id": 1003,
-    "name": "中原大學 體育館",
-    "address": "桃園市中壢區中北路200號 (體育館)",
-    "floor": "1F",
-    "landmarks": "[\"Gym Reception\"]",
-    "lat": 24.9591,
-    "lng": 121.2430
-  },
-  {
-    "id": 1004,
-    "name": "中原大學 維澈樓",
-    "address": "桃園市中壢區中北路200號 (維澈樓)",
-    "floor": "1F",
-    "landmarks": "[\"Service Center\"]",
-    "lat": 24.9565,
-    "lng": 121.2425
-  },
-  {
-    "id": 1005,
+    "id": "cycu_02",
     "name": "中原大學 圖書館",
-    "address": "桃園市中壢區中北路200號 (圖書館)",
+    "address": "1F 入口大廳左側",
+    "floor": "1F",
+    "landmarks": "[\"Main Hall\", \"Left Side\"]",
+    "lat": 24.958200,
+    "lng": 121.240400
+  },
+  {
+    "id": "cycu_03",
+    "name": "中原大學 體育館",
+    "address": "入口大廳服務台旁",
+    "floor": "1F",
+    "landmarks": "[\"Service Desk\"]",
+    "lat": 24.956500,
+    "lng": 121.240500
+  },
+  {
+    "id": "cycu_04",
+    "name": "中原大學 科學館",
+    "address": "1F 電梯口",
+    "floor": "1F",
+    "landmarks": "[\"Elevator\"]",
+    "lat": 24.958500,
+    "lng": 121.241500
+  },
+  {
+    "id": "cycu_05",
+    "name": "中原大學 真知教學大樓",
+    "address": "1F 入口",
     "floor": "1F",
     "landmarks": "[\"Entrance\"]",
-    "lat": 24.9575,
-    "lng": 121.2408
+    "lat": 24.957100,
+    "lng": 121.242000
+  },
+  {
+    "id": "cycu_06",
+    "name": "中原大學 祐生建築館",
+    "address": "1F 展示廳",
+    "floor": "1F",
+    "landmarks": "[\"Exhibition Hall\"]",
+    "lat": 24.956800,
+    "lng": 121.241800
   }
 ]
