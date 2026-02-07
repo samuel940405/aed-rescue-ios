@@ -1,5 +1,6 @@
 import 'dart:async'; // For StreamSubscription
 import 'package:geolocator/geolocator.dart'; // For Position and Geolocator
+import 'dart:math'; // For pi
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
@@ -59,15 +60,28 @@ class _GuidanceScreenState extends State<GuidanceScreen> with SingleTickerProvid
   }
 
   void _updatePosition(Position pos) async {
-       final heading = await _sensorService.getCurrentHeading() ?? 0.0;
+       // Simulator special handling: Assume Heading is 0 (North) for testing
+       // final heading = await _sensorService.getCurrentHeading() ?? 0.0;
        
-       final current = LatLng(pos.latitude, pos.longitude);
-       final target = LatLng(widget.targetAed.lat, widget.targetAed.lng);
+       final double currentLat = pos.latitude;
+       final double currentLng = pos.longitude;
+       final double targetLat = widget.targetAed.lat;
+       final double targetLng = widget.targetAed.lng;
+       
+       // Calculate bearing using Geolocator
+       final double bearing = Geolocator.bearingBetween(
+         currentLat, currentLng, 
+         targetLat, targetLng
+       );
        
        setState(() {
-         _distance = const Distance().as(LengthUnit.Meter, current, target);
-         _currentHeading = heading;
-         _bearing = _calculateBearing(current, target);
+         // Update distance
+         _distance = Geolocator.distanceBetween(
+           currentLat, currentLng, 
+           targetLat, targetLng
+         );
+         // Update bearing directly
+         _bearing = bearing;
        });
   }
 
@@ -139,14 +153,14 @@ class _GuidanceScreenState extends State<GuidanceScreen> with SingleTickerProvid
           Expanded(
             child: Center(
               child: IgnorePointer(
-                child: Transform.rotate(
-                  angle: rotationRad,
-                  child: Icon(
-                    Icons.navigation, // Simple vector arrow
-                    size: 250,
-                    color: _distance < 20 ? Colors.greenAccent : Colors.redAccent,
+                  child: Transform.rotate(
+                    angle: (_bearing + 180) * pi / 180, // Simulator: Assume phone is North-up (0 heading) + 180 correction
+                    child: Icon(
+                      Icons.navigation,
+                      size: 250,
+                      color: _distance < 20 ? Colors.greenAccent : Colors.redAccent,
+                    ),
                   ),
-                ),
               ),
             ),
           ),
