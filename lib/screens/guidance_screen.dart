@@ -154,7 +154,7 @@ class _GuidanceScreenState extends State<GuidanceScreen> with SingleTickerProvid
             child: Center(
               child: IgnorePointer(
                   child: Transform.rotate(
-                    angle: (_bearing + 180) * pi / 180, // Simulator: Assume phone is North-up (0 heading) + 180 correction
+                    angle: _bearing * pi / 180, // Point TO the target (Bearing). User noted +180 was reversed.
                     child: Icon(
                       Icons.navigation,
                       size: 250,
